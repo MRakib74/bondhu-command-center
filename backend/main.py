@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings as app_settings
 from routers import products, orders, content, video, leads, broadcast, analytics, images, settings, bondhumart, db_live
+from database import engine
+from models import crm
+
+# Command Center-এর নিজস্ব ডাটাবেস টেবিলগুলো তৈরি করা হচ্ছে
+crm.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=app_settings.PROJECT_NAME,

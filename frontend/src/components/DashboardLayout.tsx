@@ -25,6 +25,7 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "🔗 Bondhumart", href: "/bondhumart", icon: Link2 },
   { name: "Products", href: "/products", icon: Package },
+  { name: "Latest Products (Live)", href: "/products/latest", icon: Package },
   { name: "Orders", href: "/orders", icon: BarChart },
   { name: "Content AI", href: "/content", icon: PenTool },
   { name: "Image AI", href: "/images", icon: ImageIcon },

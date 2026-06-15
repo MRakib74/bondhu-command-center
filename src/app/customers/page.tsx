@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Search, Download, Upload, Filter, X, FileSpreadsheet, CheckCircle2, Edit2, Save, MessageCircle, User, MapPin, Package, ShoppingBag, Calendar, ArrowRight, Trash2 } from "lucide-react"
 import * as XLSX from "xlsx"
 
@@ -19,7 +19,6 @@ const extractAddressInfo = (fullAddress: string) => {
   if (!fullAddress) return { district: "", thana: "" };
   const lowerAddr = fullAddress.toLowerCase();
   
-  // Basic BD Districts list for auto-detection
   const districts = ["dhaka", "chattogram", "sylhet", "rajshahi", "khulna", "barishal", "rangpur", "mymensingh", "cumilla", "gazipur", "narayanganj", "bogra", "noakhali", "faridpur", "tangail", "brahmanbaria", "chandpur", "cox's bazar"];
   
   let foundDistrict = "";
@@ -30,7 +29,6 @@ const extractAddressInfo = (fullAddress: string) => {
     }
   }
 
-  // Basic Thana fallback detection (add more as needed)
   let foundThana = "";
   if (lowerAddr.includes("mirpur")) foundThana = "Mirpur";
   else if (lowerAddr.includes("uttara")) foundThana = "Uttara";
@@ -47,6 +45,17 @@ const extractAddressInfo = (fullAddress: string) => {
   return { district: foundDistrict, thana: foundThana };
 }
 
+const COLUMN_DEF = {
+  customerInfo: { label: 'Customer Info' },
+  orderId: { label: 'Order ID' },
+  product: { label: 'Product' },
+  address: { label: 'Address' },
+  delivery: { label: 'Delivery' },
+  amount: { label: 'Amount' },
+  date: { label: 'Date' },
+  status: { label: 'Status' }
+}
+
 export default function CustomersPage() {
   const [activeTab, setActiveTab] = useState('All')
   const [customers, setCustomers] = useState(defaultCustomers)
@@ -54,13 +63,22 @@ export default function CustomersPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   
+  // Drag to Scroll Refs & State
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
+
+  // Column Reordering State
+  const [columnsOrder, setColumnsOrder] = useState<string[]>(Object.keys(COLUMN_DEF))
+
   // ====== localStorage: Load on mount ======
   useEffect(() => {
     try {
       const saved = localStorage.getItem('bondhu_customers')
-      if (saved) {
-        setCustomers(JSON.parse(saved))
-      }
+      if (saved) setCustomers(JSON.parse(saved))
+      const savedCols = localStorage.getItem('bondhu_col_order')
+      if (savedCols) setColumnsOrder(JSON.parse(savedCols))
     } catch (e) {}
     setIsLoaded(true)
   }, [])
@@ -69,8 +87,9 @@ export default function CustomersPage() {
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem('bondhu_customers', JSON.stringify(customers))
+      localStorage.setItem('bondhu_col_order', JSON.stringify(columnsOrder))
     }
-  }, [customers, isLoaded])
+  }, [customers, columnsOrder, isLoaded])
 
   // Custom Columns Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -210,10 +229,80 @@ export default function CustomersPage() {
     XLSX.writeFile(wb, `Bondhu_Customers_${activeTab.replace(/[^a-zA-Z]/g, '')}.xlsx`)
   }
 
+  // --- Drag to Scroll Handlers ---
+  const handleScrollMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return
+    setIsDragging(true)
+    setStartX(e.pageX - scrollRef.current.offsetLeft)
+    setScrollLeft(scrollRef.current.scrollLeft)
+  }
+  const handleScrollMouseLeave = () => setIsDragging(false)
+  const handleScrollMouseUp = () => setIsDragging(false)
+  const handleScrollMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return
+    e.preventDefault()
+    const x = e.pageX - scrollRef.current.offsetLeft
+    const walk = (x - startX) * 1.5 // Scroll-fast factor
+    scrollRef.current.scrollLeft = scrollLeft - walk
+  }
+
+  // --- Column Reorder Handlers ---
+  const handleColDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('colIdx', index.toString())
+  }
+  const handleColDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    const dragIndex = parseInt(e.dataTransfer.getData('colIdx'))
+    if (isNaN(dragIndex) || dragIndex === dropIndex) return
+    const newOrder = [...columnsOrder]
+    const [draggedItem] = newOrder.splice(dragIndex, 1)
+    newOrder.splice(dropIndex, 0, draggedItem)
+    setColumnsOrder(newOrder)
+  }
+
+  const renderCellContent = (customer: any, colKey: string) => {
+    switch (colKey) {
+      case 'customerInfo': return (
+        <>
+          <div className="font-medium text-zinc-100 group-hover:text-blue-400 transition-colors select-text">{customer.name || "Unknown"}</div>
+          <div className="text-zinc-500 text-xs select-text">{customer.phone}</div>
+        </>
+      )
+      case 'orderId': return <span className="font-medium text-zinc-300 select-text">{customer.orderId || "-"}</span>
+      case 'product': return <span className="text-zinc-400 select-text">{customer.product || "-"}</span>
+      case 'address': return (
+        <>
+          {customer.district ? (
+            <>
+              <div className="text-zinc-200 select-text">{customer.district}, {customer.thana}</div>
+              <div className="text-zinc-500 text-xs truncate max-w-[150px] select-text">{customer.address}</div>
+            </>
+          ) : (
+            <span className="text-zinc-600 select-text">{customer.address || "-"}</span>
+          )}
+        </>
+      )
+      case 'delivery': return <span className="text-zinc-400 select-text">{customer.deliveryCharge ? `৳ ${customer.deliveryCharge}` : "-"}</span>
+      case 'amount': return <span className="font-medium text-blue-400 select-text">{customer.totalSpent ? `৳ ${customer.totalSpent.toLocaleString()}` : "-"}</span>
+      case 'date': return <span className="text-zinc-400 select-text">{customer.date || "-"}</span>
+      case 'status': return (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
+          customer.status.includes('Delivered') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+          customer.status.includes('Returned') || customer.status.includes('Cancelled') ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+          customer.status.includes('Pending') || customer.status.includes('Hold') ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+          'bg-blue-500/10 text-blue-400 border-blue-500/20'
+        }`}>
+          {customer.status}
+        </span>
+      )
+      default: return null
+    }
+  }
+
   return (
-    <div className="p-4 md:p-6 space-y-4 bg-black min-h-screen text-zinc-100">
+    <div className="p-4 md:p-6 space-y-4 bg-black h-screen overflow-hidden flex flex-col text-zinc-100">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Customers & CRM</h2>
           <p className="text-zinc-400 mt-1 text-sm">Manage all your leads, active customers, and AI segmentations.</p>
@@ -245,54 +334,57 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl overflow-hidden flex flex-col" style={{ minHeight: 'calc(100vh - 140px)' }}>
+      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl overflow-hidden flex flex-col flex-1 relative">
         {/* Toolbar */}
-        <div className="p-3 md:p-4 border-b border-zinc-800 flex flex-col gap-3 bg-zinc-900/50">
-          <div className="flex items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
+        <div className="p-3 md:p-4 border-b border-zinc-800 flex flex-col gap-4 bg-zinc-900/50 shrink-0">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            
+            <div className="relative w-full lg:flex-1 lg:max-w-xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name, phone, or order ID..." 
-                className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-600"
+                className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-600"
               />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-zinc-400 font-medium hidden sm:block bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+            
+            <div className="flex items-center w-full lg:w-auto justify-between lg:justify-end gap-3">
+              <div className="text-sm text-zinc-400 font-medium bg-zinc-950 px-3 py-2 rounded-lg border border-zinc-800 whitespace-nowrap">
                 Showing <span className="text-white">{filteredCustomers.length}</span> of <span className="text-white">{customers.length}</span>
               </div>
               
               {/* Filter Custom Columns Dropdown */}
               <div className="relative">
-              <button 
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors text-sm font-medium text-zinc-300"
-              >
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline">Filter Columns</span>
-              </button>
-              
-              {isFilterOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-56 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl z-20 p-2">
-                    <div className="text-xs font-semibold text-zinc-500 uppercase px-3 py-2 mb-1">Visible Columns</div>
-                    {Object.keys(visibleCols).map(col => (
-                      <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-900 rounded-lg cursor-pointer transition-colors">
-                        <input 
-                          type="checkbox" 
-                          checked={visibleCols[col as keyof typeof visibleCols]}
-                          onChange={(e) => setVisibleCols({...visibleCols, [col]: e.target.checked})}
-                          className="rounded bg-zinc-900 border-zinc-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 h-4 w-4"
-                        />
-                        <span className="text-sm text-zinc-300 capitalize">{col.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      </label>
-                    ))}
-                  </div>
-                </>
-              )}
+                <button 
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className="flex items-center gap-2 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium text-zinc-300"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filter Columns</span>
+                </button>
+                
+                {isFilterOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl z-20 p-2">
+                      <div className="text-xs font-semibold text-zinc-500 uppercase px-3 py-2 mb-1">Visible Columns</div>
+                      {Object.keys(visibleCols).map(col => (
+                        <label key={col} className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-900 rounded-lg cursor-pointer transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={visibleCols[col as keyof typeof visibleCols]}
+                            onChange={(e) => setVisibleCols({...visibleCols, [col]: e.target.checked})}
+                            className="rounded bg-zinc-900 border-zinc-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 h-4 w-4"
+                          />
+                          <span className="text-sm text-zinc-300 capitalize">{col.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -320,12 +412,19 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Table — scrollable */}
-        <div className="overflow-auto flex-1 bg-zinc-950">
-          <table className="w-full text-sm text-left min-w-[800px]">
-            <thead className="text-xs uppercase bg-zinc-900 border-b border-zinc-800 text-zinc-400 whitespace-nowrap sticky top-0 z-10">
+        {/* Table — scrollable and draggable */}
+        <div 
+          ref={scrollRef}
+          onMouseDown={handleScrollMouseDown}
+          onMouseLeave={handleScrollMouseLeave}
+          onMouseUp={handleScrollMouseUp}
+          onMouseMove={handleScrollMouseMove}
+          className={`overflow-auto flex-1 bg-zinc-950 custom-scrollbar ${isDragging ? 'cursor-grabbing' : 'cursor-auto'}`}
+        >
+          <table className="w-full text-sm text-left min-w-[1000px]">
+            <thead className="text-xs uppercase bg-zinc-900 border-b border-zinc-800 text-zinc-400 whitespace-nowrap sticky top-0 z-20">
               <tr>
-                <th className="px-4 py-3 font-medium w-12 text-center">
+                <th className="px-4 py-3 font-medium w-12 text-center sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800/50">
                   <input 
                     type="checkbox" 
                     checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0}
@@ -336,14 +435,25 @@ export default function CustomersPage() {
                     className="w-4 h-4 rounded border-zinc-700 bg-zinc-900/50 text-blue-500 focus:ring-blue-500/50 focus:ring-offset-zinc-950 cursor-pointer transition-all"
                   />
                 </th>
-                {visibleCols.customerInfo && <th className="px-4 py-3 font-medium">Customer Info</th>}
-                {visibleCols.orderId && <th className="px-4 py-3 font-medium">Order ID</th>}
-                {visibleCols.product && <th className="px-4 py-3 font-medium">Product</th>}
-                {visibleCols.address && <th className="px-4 py-3 font-medium">Address</th>}
-                {visibleCols.delivery && <th className="px-4 py-3 font-medium">Delivery</th>}
-                {visibleCols.amount && <th className="px-4 py-3 font-medium">Amount</th>}
-                {visibleCols.date && <th className="px-4 py-3 font-medium">Date</th>}
-                {visibleCols.status && <th className="px-4 py-3 font-medium">Status</th>}
+                {columnsOrder.map((colKey, index) => {
+                  if (!visibleCols[colKey as keyof typeof visibleCols]) return null
+                  return (
+                    <th 
+                      key={colKey} 
+                      draggable
+                      onDragStart={(e) => handleColDragStart(e, index)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleColDrop(e, index)}
+                      className="px-4 py-3 font-medium cursor-grab active:cursor-grabbing hover:bg-zinc-800 transition-colors select-none group relative"
+                      title="Drag to reorder columns"
+                    >
+                      <div className="flex items-center gap-2">
+                        {COLUMN_DEF[colKey as keyof typeof COLUMN_DEF].label}
+                        <div className="opacity-0 group-hover:opacity-100 text-zinc-600">⋮⋮</div>
+                      </div>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -358,9 +468,9 @@ export default function CustomersPage() {
                   <tr 
                     key={customer.id} 
                     onClick={() => openCustomerDetails(customer)}
-                    className={`transition-colors group whitespace-nowrap cursor-pointer ${selectedIds.includes(customer.id) ? 'bg-blue-900/20' : 'hover:bg-zinc-900/80'}`}
+                    className={`transition-colors whitespace-nowrap cursor-pointer group ${selectedIds.includes(customer.id) ? 'bg-blue-900/20' : 'hover:bg-zinc-900/80'}`}
                   >
-                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-3 text-center sticky left-0 z-10 bg-zinc-950 border-r border-zinc-800/50 group-hover:bg-zinc-900/80" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
                         checked={selectedIds.includes(customer.id)}
@@ -371,48 +481,20 @@ export default function CustomersPage() {
                         className="w-4 h-4 rounded border-zinc-700 bg-zinc-900/50 text-blue-500 focus:ring-blue-500/50 focus:ring-offset-zinc-950 cursor-pointer transition-all"
                       />
                     </td>
-                    {visibleCols.customerInfo && (
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-zinc-100 group-hover:text-blue-400 transition-colors">{customer.name || "Unknown"}</div>
-                        <div className="text-zinc-500 text-xs">{customer.phone}</div>
-                      </td>
-                    )}
-                    {visibleCols.orderId && <td className="px-4 py-3 font-medium text-zinc-300">{customer.orderId || "-"}</td>}
-                    {visibleCols.product && <td className="px-4 py-3 text-zinc-400">{customer.product || "-"}</td>}
-                    {visibleCols.address && (
-                      <td className="px-4 py-3">
-                        {customer.district ? (
-                          <>
-                            <div className="text-zinc-200">{customer.district}, {customer.thana}</div>
-                            <div className="text-zinc-500 text-xs truncate max-w-[150px]">{customer.address}</div>
-                          </>
-                        ) : (
-                          <span className="text-zinc-600">{customer.address || "-"}</span>
-                        )}
-                      </td>
-                    )}
-                    {visibleCols.delivery && <td className="px-4 py-3 text-zinc-400">{customer.deliveryCharge ? `৳ ${customer.deliveryCharge}` : "-"}</td>}
-                    {visibleCols.amount && <td className="px-4 py-3 font-medium text-blue-400">{customer.totalSpent ? `৳ ${customer.totalSpent.toLocaleString()}` : "-"}</td>}
-                    {visibleCols.date && <td className="px-4 py-3 text-zinc-400">{customer.date || "-"}</td>}
-                    {visibleCols.status && (
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                          customer.status.includes('Delivered') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                          customer.status.includes('Returned') || customer.status.includes('Cancelled') ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                          customer.status.includes('Pending') || customer.status.includes('Hold') ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                          'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        }`}>
-                          {customer.status}
-                        </span>
-                      </td>
-                    )}
+                    
+                    {columnsOrder.map((colKey) => {
+                      if (!visibleCols[colKey as keyof typeof visibleCols]) return null
+                      return (
+                        <td key={colKey} className="px-4 py-3">
+                          {renderCellContent(customer, colKey)}
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
-
         </div>
       </div>
 
@@ -715,9 +797,10 @@ export default function CustomersPage() {
       )}
 
       <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #18181b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #52525b; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />

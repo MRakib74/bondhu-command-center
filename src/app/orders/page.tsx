@@ -257,7 +257,8 @@ export default function OrdersPage() {
         
         let msg = `✅ ${data.processed} টি অর্ডার Steadfast কুরিয়ারে সফলভাবে এন্ট্রি হয়েছে!`
         if (data.failed > 0) {
-          msg += `\n❌ ${data.failed} টি অর্ডার ফেইল করেছে। (সম্ভবত ভুল ফোন নাম্বার বা এরর)`
+          const firstError = data.errors[0]?.error || 'Unknown Error';
+          msg += `\n❌ ${data.failed} টি অর্ডার ফেইল করেছে।\n\n[Steadfast Error]: ${firstError}`
           console.error(data.errors)
         }
         alert(msg)

@@ -5,7 +5,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { apiKey, secretKey, orders } = body;
 
-    if (!apiKey || !secretKey) {
+    const safeApiKey = apiKey ? apiKey.trim() : '';
+    const safeSecretKey = secretKey ? secretKey.trim() : '';
+
+    if (!safeApiKey || !safeSecretKey) {
       return NextResponse.json({ error: 'Steadfast API Key and Secret Key are required.' }, { status: 400 });
     }
 
@@ -31,8 +34,8 @@ export async function POST(req: Request) {
         const response = await fetch('https://portal.steadfast.com.bd/api/v1/create_order', {
           method: 'POST',
           headers: {
-            'Api-Key': apiKey,
-            'Secret-Key': secretKey,
+            'Api-Key': safeApiKey,
+            'Secret-Key': safeSecretKey,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(steadfastPayload)

@@ -189,8 +189,8 @@ export default function CustomersPage() {
             <div className="p-6 space-y-6">
               {/* Target Segment Selector */}
               <div>
-                <label className="block text-sm font-medium mb-2">Select Target Segment</label>
-                <select className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <label className="block text-sm font-medium mb-2 text-white">Select Target Segment</label>
+                <select className="w-full bg-zinc-900 text-white border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50">
                   <option value="">-- Choose where to save these records --</option>
                   <option value="Pending 🟡">Pending 🟡</option>
                   <option value="Hold 🟠">Hold 🟠</option>
@@ -205,11 +205,23 @@ export default function CustomersPage() {
               </div>
 
               {/* Drag & Drop Area */}
-              <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-secondary/20 transition-colors cursor-pointer group">
-                <div className="p-4 bg-secondary rounded-full mb-4 group-hover:scale-110 transition-transform">
+              <div 
+                className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-zinc-800 transition-colors cursor-pointer group relative"
+              >
+                <input 
+                  type="file" 
+                  accept=".csv, .xlsx"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      alert(`File selected: ${e.target.files[0].name}. Backend processing will be implemented next!`);
+                    }
+                  }}
+                />
+                <div className="p-4 bg-zinc-900 rounded-full mb-4 group-hover:scale-110 transition-transform">
                   <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h4 className="font-semibold mb-1">Click or drag CSV file to upload</h4>
+                <h4 className="font-semibold mb-1 text-white">Click or drag CSV file to upload</h4>
                 <p className="text-sm text-muted-foreground">Supported format: .csv, .xlsx</p>
               </div>
               

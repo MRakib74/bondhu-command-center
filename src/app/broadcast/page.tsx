@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Send, Users, Mail, MessageSquare, Phone, Image as ImageIcon, Link as LinkIcon, Video, Settings, Play, CheckCircle2, AlertTriangle, Sparkles, Filter, ChevronDown, X } from "lucide-react"
+import { Send, Users, Mail, MessageSquare, Phone, Image as ImageIcon, Link as LinkIcon, Video, Settings, Play, CheckCircle2, AlertTriangle, Sparkles, Filter, ChevronDown, X, Download, LayoutTemplate, Type, Layers } from "lucide-react"
+import imglyRemoveBackground from "@imgly/background-removal"
 
 export default function BroadcastPage() {
   const [audience, setAudience] = useState<any[]>([])
@@ -192,13 +193,11 @@ export default function BroadcastPage() {
           let isValid = true;
           if (fCustomStart) {
             const start = new Date(fCustomStart)
-            // set time to start of day
             start.setHours(0,0,0,0)
             if (cDate < start) isValid = false;
           }
           if (fCustomEnd) {
             const end = new Date(fCustomEnd)
-            // set time to end of day
             end.setHours(23,59,59,999)
             if (cDate > end) isValid = false;
           }
@@ -276,23 +275,131 @@ export default function BroadcastPage() {
 
   // AI Ad Studio State
   const [aiProductImg, setAiProductImg] = useState<File | null>(null)
-  const [aiModelImg, setAiModelImg] = useState<File | null>(null)
-  const [aiAdPrompt, setAiAdPrompt] = useState("")
-  const [aiAdStyle, setAiAdStyle] = useState("billboard")
+  const [processedProductImg, setProcessedProductImg] = useState<string | null>(null)
+  const [isRemovingBg, setIsRemovingBg] = useState(false)
+  
+  const [aiBgImg, setAiBgImg] = useState<File | null>(null)
+  const [bgPreviewUrl, setBgPreviewUrl] = useState<string | null>(null)
+  
+  const [adHeadline, setAdHeadline] = useState("")
+  const [adSubhead, setAdSubhead] = useState("")
+  const [adFooter, setAdFooter] = useState("")
+  
+  const [adCanvasSize, setAdCanvasSize] = useState("1080x1080") // 1:1
+  const [adProductPosition, setAdProductPosition] = useState("bottom-right")
+  
   const [isGeneratingAd, setIsGeneratingAd] = useState(false)
   const [generatedAds, setGeneratedAds] = useState<string[]>([])
 
+  const handleProductUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setAiProductImg(file)
+      setIsRemovingBg(true)
+      try {
+        // @ts-ignore - imgly exports correctly but TS types might be mismatched
+        const imageBlob = await imglyRemoveBackground(file)
+        setProcessedProductImg(URL.createObjectURL(imageBlob))
+      } catch (err) {
+        console.error("BG Removal Failed:", err)
+        alert("ব্যাকগ্রাউন্ড রিমুভ করতে সমস্যা হয়েছে। অরিজিনাল ছবিটিই ব্যবহার করা হচ্ছে।")
+        setProcessedProductImg(URL.createObjectURL(file))
+      }
+      setIsRemovingBg(false)
+    }
+  }
+
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setAiBgImg(file)
+      setBgPreviewUrl(URL.createObjectURL(file))
+    }
+  }
+
   const handleGenerateAd = () => {
-    if (!aiProductImg) return alert("Please upload a product image first!");
+    if (!processedProductImg) return alert("প্রথমে প্রোডাক্টের ছবি আপলোড করুন!");
+    if (!bgPreviewUrl) return alert("প্রথমে একটি ব্যাকগ্রাউন্ড ছবি আপলোড করুন!");
+    
     setIsGeneratingAd(true)
     setTimeout(() => {
-      // Mock generated images
-      setGeneratedAds(prev => [
-        `https://picsum.photos/seed/${Math.random()}/400/600`,
-        ...prev
-      ])
-      setIsGeneratingAd(false)
-    }, 2500)
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return;
+      
+      let width = 1080
+      let height = 1080
+      if (adCanvasSize === "1080x1350") { height = 1350; }
+      else if (adCanvasSize === "1920x1080") { width = 1920; }
+      
+      canvas.width = width
+      canvas.height = height
+      
+      const bgImg = new Image()
+      bgImg.crossOrigin = "anonymous"
+      bgImg.onload = () => {
+        const scale = Math.max(width / bgImg.width, height / bgImg.height)
+        const x = (width / 2) - (bgImg.width / 2) * scale
+        const y = (height / 2) - (bgImg.height / 2) * scale
+        ctx.drawImage(bgImg, x, y, bgImg.width * scale, bgImg.height * scale)
+        
+        ctx.fillStyle = "rgba(0,0,0,0.4)"
+        ctx.fillRect(0, 0, width, height)
+        
+        ctx.textAlign = "center"
+        
+        if (adHeadline) {
+          ctx.font = "bold 80px sans-serif"
+          ctx.fillStyle = "#ffffff"
+          ctx.shadowColor = "rgba(0,0,0,0.8)"
+          ctx.shadowBlur = 15
+          ctx.shadowOffsetX = 2
+          ctx.shadowOffsetY = 4
+          ctx.fillText(adHeadline, width / 2, 180)
+        }
+        
+        if (adSubhead) {
+          ctx.font = "italic 50px sans-serif"
+          ctx.fillStyle = "#ffcc00"
+          ctx.shadowColor = "rgba(0,0,0,0.8)"
+          ctx.shadowBlur = 10
+          ctx.fillText(adSubhead, width / 2, 280)
+        }
+        
+        if (adFooter) {
+          ctx.font = "bold 60px sans-serif"
+          ctx.fillStyle = "#ffffff"
+          ctx.shadowColor = "rgba(0,0,0,0.8)"
+          ctx.shadowBlur = 15
+          ctx.fillText(adFooter, width / 2, height - 120)
+        }
+        
+        const prodImg = new Image()
+        prodImg.crossOrigin = "anonymous"
+        prodImg.onload = () => {
+          ctx.shadowColor = "transparent"
+          
+          const pScale = (height * 0.45) / prodImg.height
+          const pw = prodImg.width * pScale
+          const ph = prodImg.height * pScale
+          
+          let px = 0
+          let py = height - ph - 60
+          
+          if (adProductPosition === "bottom-left") px = 100
+          else if (adProductPosition === "bottom-right") px = width - pw - 100
+          else if (adProductPosition === "center") px = (width - pw) / 2
+          
+          ctx.drawImage(prodImg, px, py, pw, ph)
+          
+          const finalUrl = canvas.toDataURL("image/png")
+          setGeneratedAds((prev: string[]) => [finalUrl, ...prev])
+          setIsGeneratingAd(false)
+        }
+        prodImg.src = processedProductImg
+      }
+      bgImg.src = bgPreviewUrl
+    }, 100)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,7 +409,6 @@ export default function BroadcastPage() {
   }
 
   const handleDropToAttach = (url: string) => {
-    // In a real app we'd convert the URL to a blob/file, or just store the URL.
     // For mock, we'll push it to an array or just set it as mediaLink to keep it simple.
     setMediaLink(url)
   }
@@ -668,11 +774,11 @@ export default function BroadcastPage() {
                   
                   {attachedFiles.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {attachedFiles.map((f, i) => (
+                      {attachedFiles.map((f: any, i: number) => (
                         <div key={i} className="flex items-center gap-2 bg-zinc-800/50 border border-zinc-700 rounded-md px-3 py-1.5 text-xs text-zinc-300">
                           {f.type.includes('image') ? <ImageIcon className="h-3 w-3 text-pink-400" /> : <Video className="h-3 w-3 text-emerald-400" />}
                           <span className="truncate max-w-[100px]">{f.name}</span>
-                          <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-zinc-500 hover:text-red-400 ml-1"><X className="h-3 w-3"/></button>
+                          <button onClick={() => setAttachedFiles((prev: any[]) => prev.filter((_: any, idx: number) => idx !== i))} className="text-zinc-500 hover:text-red-400 ml-1"><X className="h-3 w-3"/></button>
                         </div>
                       ))}
                     </div>
@@ -682,102 +788,169 @@ export default function BroadcastPage() {
             </div>
           </div>
 
-          {/* AI Ad Studio Section */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-              <ImageIcon className="h-5 w-5 text-fuchsia-400" /> AI Ad Studio <span className="bg-fuchsia-500/20 text-fuchsia-400 text-[10px] px-2 py-0.5 rounded-full border border-fuchsia-500/30">Beta</span>
-            </h3>
-            <p className="text-xs text-zinc-400 mb-6">Generate premium ad visuals (Billboard, Handheld Model etc.) by combining your product photo and an AI prompt. Drag the result to the Media box above.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-              <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-800 transition-colors relative overflow-hidden group">
-                {aiProductImg ? (
-                  <>
-                    <img src={URL.createObjectURL(aiProductImg)} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="product" />
-                    <CheckCircle2 className="h-8 w-8 text-emerald-500 relative z-10 mb-2" />
-                    <span className="relative z-10 text-xs font-medium text-emerald-400">Product Uploaded</span>
-                  </>
-                ) : (
-                  <>
-                    <ImageIcon className="h-6 w-6 text-zinc-500 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm text-zinc-300 font-medium">Upload Product (Required)</span>
-                    <span className="text-xs text-zinc-500 mt-1">Clear background works best</span>
-                  </>
-                )}
-                <input type="file" accept="image/*" onChange={(e) => e.target.files && setAiProductImg(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer" />
-              </div>
-              
-              <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-800 transition-colors relative overflow-hidden group">
-                {aiModelImg ? (
-                  <>
-                    <img src={URL.createObjectURL(aiModelImg)} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="model" />
-                    <CheckCircle2 className="h-8 w-8 text-emerald-500 relative z-10 mb-2" />
-                    <span className="relative z-10 text-xs font-medium text-emerald-400">Model Uploaded</span>
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-6 w-6 text-zinc-500 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm text-zinc-300 font-medium">Upload Model (Optional)</span>
-                    <span className="text-xs text-zinc-500 mt-1">Your own model or face</span>
-                  </>
-                )}
-                <input type="file" accept="image/*" onChange={(e) => e.target.files && setAiModelImg(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer" />
-              </div>
+          {/* Canvas AI Ad Studio Section */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+              <Layers className="h-40 w-40" />
             </div>
-
-            <div className="space-y-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2 relative z-10">
+              <ImageIcon className="h-6 w-6 text-fuchsia-400" /> Free Canvas Ad Studio <span className="bg-fuchsia-500/20 text-fuchsia-400 text-[10px] px-2 py-0.5 rounded-full border border-fuchsia-500/30 uppercase tracking-widest ml-2">No API Key Needed</span>
+            </h3>
+            <p className="text-sm text-zinc-400 mb-6 max-w-xl relative z-10">
+              আপনার প্রোডাক্ট এবং ব্যাকগ্রাউন্ড আপলোড করুন। আপনার ব্রাউজার অটোমেটিকভাবে প্রোডাক্টের ব্যাকগ্রাউন্ড রিমুভ করে ফুল HD প্রফেশনাল এড তৈরি করবে!
+            </p>
+            
+            {/* Step 1: Images */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-2">Ad Style</label>
-                <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
-                  {['Billboard', 'Handheld', 'Bedroom', 'Studio', 'Nature'].map(style => (
-                    <button 
-                      key={style}
-                      onClick={() => setAiAdStyle(style.toLowerCase())}
-                      className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${aiAdStyle === style.toLowerCase() ? 'bg-fuchsia-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                    >
-                      {style}
-                    </button>
-                  ))}
+                <label className="block text-sm font-medium text-zinc-300 mb-2 flex items-center gap-2">
+                  <span className="bg-zinc-800 text-xs w-5 h-5 flex items-center justify-center rounded-full">1</span> 
+                  Upload Product
+                </label>
+                <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-800/80 transition-colors relative h-40">
+                  {isRemovingBg ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="animate-spin h-6 w-6 border-2 border-fuchsia-500 border-t-transparent rounded-full" />
+                      <span className="text-xs text-fuchsia-400">Removing Background...</span>
+                    </div>
+                  ) : processedProductImg ? (
+                    <>
+                      <img src={processedProductImg} className="h-full object-contain drop-shadow-xl" alt="product" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+                        <span className="text-white text-xs bg-zinc-900/80 px-3 py-1 rounded">Change</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-8 w-8 text-zinc-500 mb-3" />
+                      <span className="text-sm text-zinc-300 font-medium">Click to upload product</span>
+                      <span className="text-xs text-zinc-500 mt-1">Background will be removed automatically</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleProductUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                 </div>
               </div>
               
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={aiAdPrompt}
-                  onChange={(e) => setAiAdPrompt(e.target.value)}
-                  placeholder="e.g., Make it look like a premium billboard ad..." 
-                  className="w-full bg-[#111] border border-zinc-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-fuchsia-500 text-sm"
-                />
-                <button onClick={handleGenerateAd} disabled={isGeneratingAd || !aiProductImg} className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-5 py-2.5 rounded-lg font-medium whitespace-nowrap disabled:opacity-50 flex items-center gap-2 text-sm transition-all active:scale-95 shadow-[0_0_15px_rgba(192,38,211,0.3)]">
-                  {isGeneratingAd ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Sparkles className="h-4 w-4" />}
-                  Create Ad
-                </button>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2 flex items-center gap-2">
+                  <span className="bg-zinc-800 text-xs w-5 h-5 flex items-center justify-center rounded-full">2</span> 
+                  Upload Background (Model/Scene)
+                </label>
+                <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-800/80 transition-colors relative h-40">
+                  {bgPreviewUrl ? (
+                    <>
+                      <img src={bgPreviewUrl} className="absolute inset-0 w-full h-full object-cover opacity-60 rounded-xl" alt="background" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500 relative z-10 mb-2" />
+                      <span className="relative z-10 text-xs font-bold text-white bg-black/50 px-2 py-1 rounded">Background Set</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-8 w-8 text-zinc-500 mb-3" />
+                      <span className="text-sm text-zinc-300 font-medium">Click to upload background</span>
+                      <span className="text-xs text-zinc-500 mt-1">Any image (JPG/PNG)</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleBgUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                </div>
               </div>
+            </div>
+
+            {/* Step 2: Settings & Text */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+              <label className="block text-sm font-medium text-zinc-300 mb-4 flex items-center gap-2">
+                <span className="bg-zinc-800 text-xs w-5 h-5 flex items-center justify-center rounded-full">3</span> 
+                Ad Settings & Text Overlay
+              </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-2 flex items-center gap-1"><LayoutTemplate className="h-3 w-3"/> Canvas Size</label>
+                  <select value={adCanvasSize} onChange={e=>setAdCanvasSize(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-fuchsia-500">
+                    <option value="1080x1080">Square (1:1) - 1080x1080</option>
+                    <option value="1080x1350">Portrait (4:5) - 1080x1350</option>
+                    <option value="1920x1080">Landscape (16:9) - 1920x1080</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-2">Product Placement</label>
+                  <div className="flex gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                    {['bottom-left', 'center', 'bottom-right'].map(pos => (
+                      <button 
+                        key={pos}
+                        onClick={() => setAdProductPosition(pos)}
+                        className={`flex-1 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${adProductPosition === pos ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-300'}`}
+                      >
+                        {pos.replace('-', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t border-zinc-800 pt-5">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1 flex items-center gap-1"><Type className="h-3 w-3"/> Headline (Main Title)</label>
+                  <input type="text" value={adHeadline} onChange={e=>setAdHeadline(e.target.value)} placeholder="যেমন: স্ট্রেসে রাতে ঘুম আসে না?" className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-fuchsia-500 text-sm" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">Sub Headline</label>
+                    <input type="text" value={adSubhead} onChange={e=>setAdSubhead(e.target.value)} placeholder="যেমন: শান্ত ঘুমের জন্য রিলাক্স পরিবেশ..." className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-fuchsia-500 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">Footer/Product Name</label>
+                    <input type="text" value={adFooter} onChange={e=>setAdFooter(e.target.value)} placeholder="যেমন: Fresh Sleeping Spray" className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-fuchsia-500 text-sm" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Generate */}
+            <div className="flex justify-end">
+              <button 
+                onClick={handleGenerateAd} 
+                disabled={isGeneratingAd || !processedProductImg || !bgPreviewUrl} 
+                className="bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white px-8 py-3.5 rounded-xl font-bold disabled:opacity-50 flex items-center gap-3 text-lg transition-all active:scale-95 shadow-[0_0_20px_rgba(192,38,211,0.4)]"
+              >
+                {isGeneratingAd ? (
+                  <><div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> Generating Ad...</>
+                ) : (
+                  <><Sparkles className="h-5 w-5" /> Generate Canvas Ad</>
+                )}
+              </button>
             </div>
 
             {/* Generated Gallery */}
             {generatedAds.length > 0 && (
-              <div className="mt-6 border-t border-zinc-800 pt-5">
-                <label className="block text-xs font-medium text-zinc-400 mb-3">Generated Ads (Drag to link box)</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {generatedAds.map((url, i) => (
-                    <div key={i} className="aspect-[3/4] bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden group relative">
-                      <img 
-                        src={url} 
-                        draggable 
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', url)}
-                        alt="AI Generated" 
-                        className="w-full h-full object-cover cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" 
-                      />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                        <span className="text-white text-xs font-medium bg-black/80 px-2 py-1 rounded">Drag Me</span>
+              <div className="mt-8 border-t border-zinc-800 pt-6">
+                <label className="block text-sm font-bold text-white mb-4">Generated Masterpieces</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {generatedAds.map((url: string, i: number) => (
+                    <div key={i} className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden group">
+                      <div className="aspect-square bg-black overflow-hidden relative">
+                        <img 
+                          src={url} 
+                          draggable 
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', url)}
+                          alt="AI Generated" 
+                          className="w-full h-full object-contain cursor-grab active:cursor-grabbing group-hover:scale-[1.02] transition-transform" 
+                        />
+                      </div>
+                      <div className="p-3 bg-zinc-900 flex gap-2">
+                        <a href={url} download={`Ad_${Date.now()}.png`} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                          <Download className="h-3 w-3" /> Download HD
+                        </a>
+                        <button onClick={()=>setMediaLink(url)} className="flex-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                          <LinkIcon className="h-3 w-3" /> Use in Broadcast
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
+
           </div>
         </div>
 

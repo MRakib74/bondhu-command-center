@@ -430,6 +430,75 @@ export default function OrdersPage() {
   }
 
   const confirmCourierEntry = async () => {
+    if (selectedCourier === 'pathao') {
+      try {
+        const courierConfigRaw = localStorage.getItem('bondhu_courier_config')
+        let pathaoConfig = null;
+        if (courierConfigRaw) {
+          const config = JSON.parse(courierConfigRaw)
+          pathaoConfig = config.couriers?.find((c: any) => c.id === 'pathao')
+        }
+
+        if (!pathaoConfig || !pathaoConfig.isActive || !pathaoConfig.apiKey) {
+          return alert('Pathao API Key (Access Token) সেট করা নেই! Courier Auto-Entry পেজ থেকে সেটআপ করুন।')
+        }
+
+        setIsSending(true)
+
+        const ordersToSend = orders.filter(o => selectedIds.includes(o.id))
+
+        const res = await fetch('/api/courier/pathao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey: pathaoConfig.apiKey,
+            secretKey: pathaoConfig.secretKey, // Used for store_id fallback
+            baseUrl: pathaoConfig.baseUrl,
+            orders: ordersToSend
+          })
+        })
+
+        const data = await res.json()
+
+        if (data.success) {
+          const updated = orders.map(o => {
+            if (selectedIds.includes(o.id)) {
+              const apiResult = data.results.find((r: any) => r.orderId === o.id)
+              if (apiResult && apiResult.status === 'success') {
+                return {
+                  ...o,
+                  status: 'shipped' as const,
+                  courierName: selectedCourier,
+                  trackingNo: apiResult.tracking_code,
+                  consignmentId: apiResult.consignment_id,
+                  shippedAt: new Date().toISOString(),
+                  phone: formatPhoneForCourier(o.phone)
+                }
+              }
+            }
+            return o
+          })
+          saveOrders(updated)
+          setSelectedIds([])
+          setShowCourierModal(false)
+          
+          let msg = `✅ ${data.processed} টি অর্ডার Pathao কুরিয়ারে সফলভাবে এন্ট্রি হয়েছে!`
+          if (data.failed > 0) {
+            msg += `\n❌ ${data.failed} টি অর্ডার ফেইল করেছে।`
+          }
+          alert(msg)
+        } else {
+          alert(`❌ Error: ${data.error}`)
+        }
+      } catch (err) {
+        alert('Internal error occurred while communicating with Pathao API.')
+        console.error(err)
+      } finally {
+        setIsSending(false)
+      }
+      return;
+    }
+
     if (selectedCourier !== 'steadfast' && selectedCourier !== 'pathao') {
       // Mock for others currently
       const updated = orders.map(o => {
@@ -452,30 +521,29 @@ export default function OrdersPage() {
       return;
     }
 
-    // Steadfast or Pathao API Integration
+    // Steadfast API Integration
     try {
       const courierConfigRaw = localStorage.getItem('bondhu_courier_config')
-      let activeConfig = null;
+      let steadfastConfig = null;
       if (courierConfigRaw) {
         const config = JSON.parse(courierConfigRaw)
-        activeConfig = config.couriers?.find((c: any) => c.id === selectedCourier)
+        steadfastConfig = config.couriers?.find((c: any) => c.id === 'steadfast')
       }
 
-      if (!activeConfig || !activeConfig.isActive || !activeConfig.apiKey || !activeConfig.secretKey) {
-        return alert(`${selectedCourier === 'pathao' ? 'Pathao Courier' : 'Steadfast Courier'} এর API Key এবং Secret Key সেট করা নেই! Courier Auto-Entry পেজ থেকে আগে সেটআপ করুন।`)
+      if (!steadfastConfig || !steadfastConfig.isActive || !steadfastConfig.apiKey || !steadfastConfig.secretKey) {
+        return alert('Steadfast API Key / Secret Key সেট করা নেই! Courier Auto-Entry পেজ থেকে সেটআপ করুন।')
       }
 
       setIsSending(true)
 
       const ordersToSend = orders.filter(o => selectedIds.includes(o.id))
 
-      const res = await fetch(`/api/courier/${selectedCourier}`, {
+      const res = await fetch('/api/courier/steadfast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          apiKey: activeConfig.apiKey,
-          secretKey: activeConfig.secretKey,
-          baseUrl: activeConfig.baseUrl,
+          apiKey: steadfastConfig.apiKey,
+          secretKey: steadfastConfig.secretKey,
           orders: ordersToSend
         })
       })
@@ -492,7 +560,7 @@ export default function OrdersPage() {
                 ...o,
                 status: 'shipped' as const,
                 courierName: selectedCourier,
-                trackingNo: apiResult.tracking_code || `${selectedCourier.toUpperCase()}-` + Date.now(),
+                trackingNo: apiResult.tracking_code || 'STDF-' + Date.now(),
                 consignmentId: apiResult.consignment_id,
                 shippedAt: new Date().toISOString(),
                 phone: formatPhoneForCourier(o.phone)
@@ -505,11 +573,10 @@ export default function OrdersPage() {
         setSelectedIds([])
         setShowCourierModal(false)
         
-        const courierDisplayName = selectedCourier === 'pathao' ? 'Pathao' : 'Steadfast';
-        let msg = `✅ ${data.processed} টি অর্ডার ${courierDisplayName} কুরিয়ারে সফলভাবে এন্ট্রি হয়েছে!`
+        let msg = `✅ ${data.processed} টি অর্ডার Steadfast কুরিয়ারে সফলভাবে এন্ট্রি হয়েছে!`
         if (data.failed > 0) {
           const firstError = data.errors[0]?.error || 'Unknown Error';
-          msg += `\n❌ ${data.failed} টি অর্ডার ফেইল করেছে।\n\n[${courierDisplayName} Error]: ${firstError}`
+          msg += `\n❌ ${data.failed} টি অর্ডার ফেইল করেছে।\n\n[Steadfast Error]: ${firstError}`
           console.error(data.errors)
         }
         alert(msg)

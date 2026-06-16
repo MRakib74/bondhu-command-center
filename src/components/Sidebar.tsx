@@ -12,11 +12,13 @@ import {
   History,
   Truck,
   BookOpen,
-  Settings
+  Settings,
+  BarChart3
 } from "lucide-react"
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Ads Analytics', href: '/ads', icon: BarChart3 },
   { name: 'Customers & CRM', href: '/customers', icon: Users },
   { name: 'Orders', href: '/orders', icon: ShoppingCart },
   { name: 'Fraud Check & History', href: '/history', icon: History },

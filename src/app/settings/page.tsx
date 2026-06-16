@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Settings, MessageSquare, Phone, Save, CheckCircle2, Copy, AlertTriangle, Link as LinkIcon } from "lucide-react"
+import { Settings, MessageSquare, Phone, Save, CheckCircle2, Copy, AlertTriangle, Link as LinkIcon, BarChart3 } from "lucide-react"
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('messenger')
@@ -24,9 +24,13 @@ export default function SettingsPage() {
 
   // Email State
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com')
-  const [smtpPort, setSmtpPort] = useState('465')
+  const [smtpPort, setSmtpPort] = useState('587')
   const [smtpEmail, setSmtpEmail] = useState('')
   const [smtpPass, setSmtpPass] = useState('')
+
+  // FB Ads State
+  const [fbAdAccountId, setFbAdAccountId] = useState('')
+  const [fbAdAccessToken, setFbAdAccessToken] = useState('')
 
   useEffect(() => {
     try {
@@ -41,9 +45,11 @@ export default function SettingsPage() {
         setSmsUrl(parsed.smsUrl || '')
         setSmsKey(parsed.smsKey || '')
         setSmtpHost(parsed.smtpHost || 'smtp.gmail.com')
-        setSmtpPort(parsed.smtpPort || '465')
+        setSmtpPort(parsed.smtpPort || '587')
         setSmtpEmail(parsed.smtpEmail || '')
         setSmtpPass(parsed.smtpPass || '')
+        setFbAdAccountId(parsed.fbAdAccountId || '')
+        setFbAdAccessToken(parsed.fbAdAccessToken || '')
       }
     } catch(e) {}
   }, [])
@@ -51,7 +57,8 @@ export default function SettingsPage() {
   const handleSave = () => {
     localStorage.setItem('bondhu_chat_config', JSON.stringify({
       fbPageId, fbAccessToken, waInstance, waApiKey, waBaseUrl,
-      smsUrl, smsKey, smtpHost, smtpPort, smtpEmail, smtpPass
+      smsUrl, smsKey, smtpHost, smtpPort, smtpEmail, smtpPass,
+      fbAdAccountId, fbAdAccessToken
     }))
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -102,6 +109,12 @@ export default function SettingsPage() {
         >
           <MessageSquare className="h-4 w-4" /> Email (SMTP/Gmail)
         </button>
+        <button 
+          onClick={() => setActiveTab('fbads')} 
+          className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'fbads' ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'}`}
+        >
+          <BarChart3 className="h-4 w-4" /> Facebook Ads
+        </button>
       </div>
 
       <div className="mt-6">
@@ -117,7 +130,6 @@ export default function SettingsPage() {
             </div>
             
             <div className="p-6 space-y-8">
-              {/* Credentials */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1">Facebook Page ID</label>
@@ -141,7 +153,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Webhook Info */}
               <div className="bg-zinc-900/50 rounded-xl p-5 border border-zinc-800">
                 <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><LinkIcon className="h-4 w-4 text-zinc-400" /> Webhook Setup Info</h4>
                 <div className="space-y-4">
@@ -266,34 +277,36 @@ export default function SettingsPage() {
             </div>
             
             <div className="p-6 space-y-6">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">SMTP Host</label>
-                <input 
-                  type="text" 
-                  value={smtpHost} 
-                  onChange={e => setSmtpHost(e.target.value)} 
-                  placeholder="smtp.gmail.com" 
-                  className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">SMTP Host</label>
+                  <input 
+                    type="text" 
+                    value={smtpHost} 
+                    onChange={e => setSmtpHost(e.target.value)} 
+                    placeholder="smtp.gmail.com" 
+                    className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">SMTP Port</label>
+                  <input 
+                    type="text" 
+                    value={smtpPort} 
+                    onChange={e => setSmtpPort(e.target.value)} 
+                    placeholder="587" 
+                    className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1">Email Address</label>
                   <input 
                     type="email" 
                     value={smtpEmail} 
                     onChange={e => setSmtpEmail(e.target.value)} 
                     placeholder="yourname@gmail.com" 
-                    className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Port</label>
-                  <input 
-                    type="text" 
-                    value={smtpPort} 
-                    onChange={e => setSmtpPort(e.target.value)} 
-                    placeholder="465" 
                     className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
                   />
                 </div>
@@ -307,6 +320,42 @@ export default function SettingsPage() {
                     className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500" 
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'fbads' && (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-gradient-to-r from-orange-500/20 to-transparent p-6 border-b border-zinc-800">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-orange-400" /> Facebook Ads Analytics
+              </h3>
+              <p className="text-sm text-zinc-400 mt-2 max-w-2xl">
+                Configure your Meta Ads Account ID and System User Access Token to fetch campaign performance, ROAS, and demographic insights into your dashboard.
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Ad Account ID (Format: act_xxxxxxxx)</label>
+                <input 
+                  type="text" 
+                  value={fbAdAccountId} 
+                  onChange={e => setFbAdAccountId(e.target.value)} 
+                  placeholder="act_1234567890" 
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">System User Access Token (Requires ads_read, read_insights)</label>
+                <input 
+                  type="password" 
+                  value={fbAdAccessToken} 
+                  onChange={e => setFbAdAccessToken(e.target.value)} 
+                  placeholder="EAABxxxxxxxxxxxxxxxxxxxx..." 
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500" 
+                />
               </div>
             </div>
           </div>

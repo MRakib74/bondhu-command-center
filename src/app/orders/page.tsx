@@ -230,47 +230,71 @@ export default function OrdersPage() {
     setIsEditModalOpen(false)
   }
 
-  const getInvoiceStyles = () => `
+  const getInvoiceConfig = () => {
+    let config = {
+      theme: 'bw',
+      grid: '3x3',
+      courierPosition: 'top-right',
+      showSellerAddress: true,
+      showCustomerPhone: true
+    };
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('bondhu_invoice_config');
+        if (saved) config = JSON.parse(saved);
+      }
+    } catch (e) {}
+    return config;
+  }
+
+  const getInvoiceStyles = (config: any) => {
+    const isBW = config.theme === 'bw';
+    const is3x3 = config.grid === '3x3';
+    
+    return `
     <style>
       @page { size: A4 portrait; margin: 10mm; }
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #fff; color: #111; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .a4-page { width: 190mm; height: 277mm; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 10mm; box-sizing: border-box; page-break-after: always; }
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #fff; color: #000; font-size: ${is3x3 ? '9px' : '11px'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .a4-page { width: 190mm; height: 277mm; margin: 0 auto; display: grid; grid-template-columns: ${is3x3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)'}; grid-template-rows: repeat(3, 1fr); gap: 10mm; box-sizing: border-box; page-break-after: always; }
       .a4-page:last-child { page-break-after: auto; }
-      .invoice-page { width: 100%; height: 100%; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
+      .invoice-page { width: 100%; height: 100%; box-sizing: border-box; border: ${isBW ? '1px solid #000' : '1px dashed #ccc'}; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
       
-      .header { background: linear-gradient(135deg, #0ea5e9, #10b981); color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; }
-      .header h1 { margin: 0; font-size: 14px; font-weight: 800; }
-      .header p { margin: 2px 0 0; font-size: 9px; opacity: 0.9; }
-      .invoice-badge { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 10px; font-weight: bold; font-size: 9px; }
+      .header { background: ${isBW ? '#fff' : 'linear-gradient(135deg, #0ea5e9, #10b981)'}; color: ${isBW ? '#000' : '#fff'}; border-bottom: ${isBW ? '2px solid #000' : 'none'}; padding: ${is3x3 ? '6px 8px' : '8px 12px'}; display: flex; justify-content: space-between; align-items: center; }
+      .header h1 { margin: 0; font-size: ${is3x3 ? '12px' : '14px'}; font-weight: 800; }
+      .header p { margin: 2px 0 0; font-size: ${is3x3 ? '8px' : '9px'}; opacity: 0.9; }
+      .invoice-badge { background: ${isBW ? '#fff' : 'rgba(255,255,255,0.2)'}; border: ${isBW ? '1px solid #000' : 'none'}; padding: 2px 6px; border-radius: ${isBW ? '0' : '10px'}; font-weight: bold; font-size: ${is3x3 ? '8px' : '9px'}; color: ${isBW ? '#000' : '#fff'}; display: ${config.courierPosition === 'top-right' ? 'block' : 'inline-block'}; }
+      .top-courier-id { margin-bottom: 4px; font-size: ${is3x3 ? '10px' : '12px'}; font-weight: 900; border: ${isBW ? '1px solid #000' : 'none'}; background: ${isBW ? '#000' : 'rgba(255,255,255,0.2)'}; color: #fff; padding: 2px 6px; border-radius: 4px; display: inline-block; }
       
-      .details-box { display: flex; justify-content: space-between; border-bottom: 1px solid #e4e4e7; padding: 6px 10px; background: #fafafa; }
-      .box { width: 48%; }
-      .box-title { font-size: 9px; color: #71717a; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
-      .box-text { font-size: 10px; margin: 1px 0; font-weight: 600; }
-      .address-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 9.5px; margin-top: 2px; color: #52525b; line-height: 1.25; }
+      .details-box { display: flex; justify-content: space-between; border-bottom: 1px solid ${isBW ? '#000' : '#e4e4e7'}; padding: ${is3x3 ? '4px 6px' : '6px 10px'}; background: ${isBW ? '#fff' : '#fafafa'}; }
+      .box-seller { width: 45%; display: ${config.showSellerAddress ? 'block' : 'none'}; }
+      .box-customer { width: ${config.showSellerAddress ? '50%' : '100%'}; border-left: ${config.showSellerAddress ? (isBW ? '1px solid #000' : '2px solid #10b981') : 'none'}; padding-left: ${config.showSellerAddress ? '6px' : '0'}; }
+      .box-title { font-size: ${is3x3 ? '8px' : '9px'}; color: ${isBW ? '#000' : '#71717a'}; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+      .box-text { font-size: ${is3x3 ? '9px' : '10px'}; margin: 1px 0; font-weight: 600; }
+      .address-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: ${is3x3 ? '8px' : '9.5px'}; margin-top: 2px; color: ${isBW ? '#000' : '#52525b'}; line-height: 1.25; }
       
-      .table-container { padding: 0 10px; flex-grow: 1; overflow: hidden; min-height: 0; }
+      .table-container { padding: 0 6px; flex-grow: 1; overflow: hidden; min-height: 0; }
       .table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-      .table th { border-bottom: 1px solid #e4e4e7; padding: 4px 2px; text-align: left; font-size: 9px; color: #71717a; text-transform: uppercase; }
-      .table td { border-bottom: 1px dashed #e4e4e7; padding: 4px 2px; font-size: 10px; font-weight: 600; }
+      .table th { border-bottom: 1px solid ${isBW ? '#000' : '#e4e4e7'}; padding: 2px 0; text-align: left; font-size: ${is3x3 ? '8px' : '9px'}; color: ${isBW ? '#000' : '#71717a'}; text-transform: uppercase; }
+      .table td { border-bottom: 1px dashed ${isBW ? '#000' : '#e4e4e7'}; padding: 4px 0; font-size: ${is3x3 ? '9px' : '10px'}; font-weight: 600; }
       
-      .summary { margin-top: auto; padding: 6px 10px; border-top: 1px solid #e4e4e7; flex-shrink: 0; }
-      .summary-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 10px; color: #52525b; }
-      .total-row { background: #18181b; color: white; padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 12px; margin-top: 4px; }
+      .summary { margin-top: auto; padding: ${is3x3 ? '4px 6px' : '6px 10px'}; border-top: 1px solid ${isBW ? '#000' : '#e4e4e7'}; flex-shrink: 0; }
+      .summary-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: ${is3x3 ? '9px' : '10px'}; color: ${isBW ? '#000' : '#52525b'}; }
+      .total-row { background: ${isBW ? '#000' : '#18181b'}; color: white; padding: 4px 6px; border-radius: ${isBW ? '0' : '4px'}; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: ${is3x3 ? '10px' : '12px'}; margin-top: 4px; }
       
-      .courier-info { text-align: center; background: #f4f4f5; padding: 6px; margin: 6px 10px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px dashed #d4d4d8; flex-shrink: 0; }
+      .courier-info { text-align: center; background: ${isBW ? '#fff' : '#f4f4f5'}; padding: 4px; margin: 4px 6px 6px; border-radius: 4px; font-size: ${is3x3 ? '9px' : '10px'}; font-weight: bold; border: ${isBW ? '1px solid #000' : '1px dashed #d4d4d8'}; flex-shrink: 0; }
       
       @media screen {
         body { background: #52525b; padding: 20mm 0; }
         .a4-page { background: #fff; padding: 10mm; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 20mm; }
       }
     </style>
-  `;
+  `};
 
-  const generateInvoiceHTML = (o: OrderItem) => {
+  const generateInvoiceHTML = (o: OrderItem, config: any) => {
     const subtotal = o.amount;
     const delivery = o.deliveryCharge;
     const total = subtotal + delivery;
+    const isBW = config.theme === 'bw';
 
     return `
       <div class="invoice-page">
@@ -280,21 +304,23 @@ export default function OrdersPage() {
             <p>Trusted Online Shop</p>
           </div>
           <div style="text-align: right;">
-            <div class="invoice-badge">INVOICE</div>
-            <p style="margin-top: 8px; font-family: monospace;">${o.id.slice(-6)}</p>
+            ${config.courierPosition === 'top-right' && o.consignmentId ? `
+              <div class="top-courier-id">ID: ${o.consignmentId}</div>
+            ` : ''}
+            <div class="invoice-badge">INVOICE #${o.id.slice(-6)}</div>
           </div>
         </div>
         
         <div class="details-box">
-          <div class="box">
+          <div class="box-seller">
             <div class="box-title">Seller</div>
             <div class="box-text">BondhuMart</div>
-            <div class="box-text" style="color: #52525b; font-size: 11px; margin-top: 4px;">Dhaka, Bangladesh</div>
+            <div class="box-text" style="color: ${isBW ? '#000' : '#52525b'}; font-size: 11px; margin-top: 4px;">Dhaka, Bangladesh</div>
           </div>
-          <div class="box" style="border-left: 2px solid #10b981; padding-left: 10px;">
+          <div class="box-customer">
             <div class="box-title">Customer</div>
             <div class="box-text">${o.customerName}</div>
-            <div class="box-text" style="color: #0ea5e9;">📞 ${o.phone}</div>
+            ${config.showCustomerPhone ? `<div class="box-text" style="color: ${isBW ? '#000' : '#0ea5e9'};">📞 ${o.phone}</div>` : ''}
             <div class="address-text">${o.address} ${o.district ? ', ' + o.district : ''}</div>
           </div>
         </div>
@@ -303,7 +329,6 @@ export default function OrdersPage() {
           <table class="table">
             <thead>
               <tr>
-                <th>#</th>
                 <th>Product</th>
                 <th style="text-align: center;">Qty</th>
                 <th style="text-align: right;">Price</th>
@@ -311,7 +336,6 @@ export default function OrdersPage() {
             </thead>
             <tbody>
               <tr>
-                <td>1</td>
                 <td>${o.product}</td>
                 <td style="text-align: center;">${o.quantity}</td>
                 <td style="text-align: right;">৳ ${subtotal}</td>
@@ -323,12 +347,12 @@ export default function OrdersPage() {
         <div class="summary">
           <div class="summary-row"><span>Subtotal</span><span>৳ ${subtotal}</span></div>
           <div class="summary-row"><span>Delivery Charge</span><span>৳ ${delivery}</span></div>
-          <div class="total-row"><span>TOTAL (COD)</span><span style="color: #10b981;">৳ ${total}</span></div>
+          <div class="total-row"><span>TOTAL (COD)</span><span style="color: ${isBW ? '#fff' : '#10b981'};">৳ ${total}</span></div>
         </div>
 
-        ${o.consignmentId ? `
+        ${config.courierPosition === 'bottom' && o.consignmentId ? `
         <div class="courier-info">
-          Courier: ${o.courierName?.toUpperCase()} | Courier ID: ${o.consignmentId}
+          Courier: ${o.courierName?.toUpperCase()} | ID: ${o.consignmentId}
         </div>` : ''}
       </div>
     `;
@@ -336,6 +360,7 @@ export default function OrdersPage() {
 
   const handlePrintInvoice = () => {
     if (!selectedOrder) return;
+    const config = getInvoiceConfig();
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert('Please allow popups to print invoices.');
 
@@ -344,11 +369,11 @@ export default function OrdersPage() {
       <html>
       <head>
         <title>Invoice - ${selectedOrder.id}</title>
-        ${getInvoiceStyles()}
+        ${getInvoiceStyles(config)}
       </head>
       <body>
         <div class="a4-page">
-          ${generateInvoiceHTML(selectedOrder)}
+          ${generateInvoiceHTML(selectedOrder, config)}
         </div>
       </body>
       </html>
@@ -364,15 +389,17 @@ export default function OrdersPage() {
 
   const handleBulkPrint = () => {
     if (selectedIds.length === 0) return;
+    const config = getInvoiceConfig();
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert('Please allow popups to print invoices.');
 
     const selectedOrdersData = orders.filter(o => selectedIds.includes(o.id));
 
-    // Chunk orders into groups of 6 for each A4 page
+    // Chunk orders into groups based on grid layout (9 for 3x3, 6 for 2x3)
+    const itemsPerPage = config.grid === '3x3' ? 9 : 6;
     const chunks = [];
-    for (let i = 0; i < selectedOrdersData.length; i += 6) {
-      chunks.push(selectedOrdersData.slice(i, i + 6));
+    for (let i = 0; i < selectedOrdersData.length; i += itemsPerPage) {
+      chunks.push(selectedOrdersData.slice(i, i + itemsPerPage));
     }
 
     const html = `
@@ -380,12 +407,12 @@ export default function OrdersPage() {
       <html>
       <head>
         <title>Bulk Invoice Print (${selectedOrdersData.length})</title>
-        ${getInvoiceStyles()}
+        ${getInvoiceStyles(config)}
       </head>
       <body>
         ${chunks.map(chunk => `
           <div class="a4-page">
-            ${chunk.map(o => generateInvoiceHTML(o)).join('')}
+            ${chunk.map(o => generateInvoiceHTML(o, config)).join('')}
           </div>
         `).join('')}
       </body>

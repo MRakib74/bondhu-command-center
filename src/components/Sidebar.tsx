@@ -28,6 +28,7 @@ const navigation = [
   { name: 'AI Training Center', href: '/ai-training', icon: BookOpen },
   { name: 'Courier Auto-Entry', href: '/courier', icon: Truck },
   { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
+  { name: 'Invoice Builder', href: '/invoice-builder', icon: Settings },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

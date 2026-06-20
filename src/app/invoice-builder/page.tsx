@@ -282,7 +282,7 @@ function DummyInvoice({ config }: { config: any }) {
         </div>
       </div>
 
-      <div style={{ padding: '0 6px', flexGrow: 1 }}>
+      <div style={{ padding: '0 6px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '4px' }}>
           <thead>
             <tr>
@@ -301,9 +301,9 @@ function DummyInvoice({ config }: { config: any }) {
         </table>
       </div>
 
-      <div style={{ marginTop: 'auto', padding: is3x3 ? '4px 6px' : '6px 10px', borderTop: '1px solid ' + (isBW?'#000':'#e4e4e7') }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is3x3?'9px':'10px' }}><span>Subtotal</span><span>৳ 990</span></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is3x3?'9px':'10px', margin: '2px 0' }}><span>Delivery</span><span>৳ 0</span></div>
+      <div style={{ padding: is3x3 ? '2px 6px' : '4px 10px', borderTop: '1px solid ' + (isBW?'#000':'#e4e4e7') }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is3x3?'9px':'10px', fontWeight: 'bold' }}><span>Subtotal</span><span>৳ 990</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is3x3?'9px':'10px', fontWeight: 'bold', margin: '1px 0' }}><span>Delivery</span><span>৳ 0</span></div>
         <div style={{ 
           background: isBW ? '#000' : '#18181b', 
           color: '#fff', 
@@ -312,7 +312,7 @@ function DummyInvoice({ config }: { config: any }) {
           display: 'flex', 
           justifyContent: 'space-between', 
           fontWeight: 'bold', 
-          marginTop: '4px',
+          marginTop: '2px',
           fontSize: is3x3 ? '10px' : '12px'
         }}>
           <span>TOTAL (COD)</span>

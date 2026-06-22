@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     // 3. Create Order
     const newOrder = await prisma.order.create({
       data: {
+        bondhumartId: 'ORD-' + Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
         customerId: cust.id,
         productId: prod.id,
         quantity: Number(quantity) || 1,

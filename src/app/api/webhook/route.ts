@@ -8,9 +8,7 @@ export async function POST(req: Request) {
   try {
     // 1. Verify Secret Key to ensure the request is actually from Laravel
     const authHeader = req.headers.get("authorization")
-    const secret = process.env.WEBHOOK_SECRET || 'bondhumart_secret_123'
-    
-    if (authHeader !== `Bearer ${secret}`) {
+    if (authHeader !== `Bearer ${process.env.WEBHOOK_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -65,12 +63,23 @@ async function handleNewOrder(data: any) {
     }
   })
 
+  // Ensure product exists
+  const product = await prisma.product.upsert({
+    where: { bondhumartId: data.product_id.toString() },
+    update: {},
+    create: {
+      bondhumartId: data.product_id.toString(),
+      name: "Product #" + data.product_id,
+      price: data.amount,
+    }
+  })
+
   // Create the Order record
   await prisma.order.create({
     data: {
       bondhumartId: data.order_id.toString(),
       customerId: customer.id,
-      productId: data.product_id.toString(), // We'll need to sync products first ideally
+      productId: product.id,
       amount: data.amount,
       status: "Pending",
     }

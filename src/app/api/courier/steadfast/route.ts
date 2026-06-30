@@ -45,17 +45,17 @@ export async function POST(req: Request) {
 
         const data = await response.json();
 
-        if (response.ok && data.status === 200) {
+        if (response.ok) {
           results.push({
             orderId: order.dbId || order.id,
-            tracking_code: data.consignment?.tracking_code || 'TRACK-' + Date.now(),
-            consignment_id: data.consignment?.consignment_id,
+            tracking_code: data.consignment?.tracking_code || data.tracking_code || 'TRACK-' + Date.now(),
+            consignment_id: data.consignment?.consignment_id || data.consignment_id,
             status: 'success'
           });
         } else {
           errors.push({
             orderId: order.dbId || order.id,
-            error: data.message || JSON.stringify(data.errors) || 'Failed to create order'
+            error: data.message || JSON.stringify(data) || 'Failed to create order'
           });
         }
       } catch (err: any) {

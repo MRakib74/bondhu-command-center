@@ -180,7 +180,8 @@ export default function OrderManagePage() {
         }
         
         if (data.failed > 0) {
-          alert(`❌ ${data.failed} টি অর্ডার কুরিয়ারে পাঠানো যায়নি। (হয়তো ঠিকানা বা তথ্যে ভুল আছে)`);
+          const firstError = data.errors && data.errors.length > 0 ? data.errors[0].error : 'অজানা ত্রুটি';
+          alert(`❌ ${data.failed} টি অর্ডার কুরিয়ারে পাঠানো যায়নি।\nকারণ: ${firstError}`);
         }
         
         fetchOrders();
